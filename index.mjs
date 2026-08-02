@@ -5,6 +5,7 @@ import { query } from 'jsonpath-rfc9535';
 const { FST_ERR_CTP_INVALID_MEDIA_TYPE } = errorCodes;
 
 const createOnRouteHandler = ({
+  contentType = 'application/jsonpath',
   queryFn = query,
 }) => function fastifyQueryJsonpathOnRoute(route) {
   const { handler, method } = route;
@@ -13,8 +14,8 @@ const createOnRouteHandler = ({
   this.route({
     ...route,
     async handler(request, reply) {
-      const { headers: { ['content-type']: contentType }, body } = request;
-      if (contentType.split(';', 1)[0].trim().toLowerCase() !== 'application/jsonpath')
+      const { headers: { ['content-type']: requestContentType }, body } = request;
+      if (requestContentType.split(';', 1)[0].trim().toLowerCase() !== contentType)
         throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
       return queryFn(await handler.call(this, request, reply), body);
     },
