@@ -26,4 +26,7 @@ export default fp(async (fastify, options) => {
   fastify
     .addContentTypeParser('application/jsonpath', { parseAs: 'string' }, async (request, body) => body)
     .addHook('onRoute', createOnRouteHandler(options));
+}, {
+  fastify: '5.x',
+  name: 'fastify-query-jsonpath',
 });
