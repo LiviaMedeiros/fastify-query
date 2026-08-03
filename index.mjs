@@ -20,7 +20,7 @@ function routeMatch(route) {
     }
     default: return true;
   }
-};
+}
 
 const createOnRouteHandler = ({
   addAcceptQuery = true,
@@ -28,7 +28,7 @@ const createOnRouteHandler = ({
   queryFn = query,
   filter = ({ method }) => method === 'GET',
 }) => function fastifyQueryJsonpathOnRoute(route) {
-  const { handler, method } = route;
+  const { handler } = route;
   if (!routeMatch.call(filter, route))
     return;
   this.route({
