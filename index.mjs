@@ -25,21 +25,25 @@ function routeMatch(route) {
 const createOnRouteHandler = ({
   addAcceptQuery = true,
   contentType = 'application/jsonpath',
+  filterReply = ({ statusCode }) => 200 <= statusCode && statusCode < 300,
+  filterRequest = ({ method }) => method === 'GET',
   queryFn = query,
-  filter = ({ method }) => method === 'GET',
 }) => function fastifyQueryJsonpathOnRoute(route) {
   const { handler } = route;
-  if (!routeMatch.call(filter, route))
+  if (!routeMatch.call(filterRequest, route))
     return;
   this.route({
     ...route,
     async handler(request, reply) {
-      const { headers: { ['content-type']: requestContentType }, body } = request;
+      const { headers: { ['content-type']: requestContentType } } = request;
       if (requestContentType.split(';', 1)[0].trim().toLowerCase() !== contentType)
         throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
       if (addAcceptQuery)
         reply.header('accept-query', contentType);
-      return queryFn(await handler.call(this, request, reply), body);
+      return handler.call(this, request, reply);
+    },
+    async preSerialization({ body }, reply, payload) {
+      return filterReply(reply) ? queryFn(payload, body) : payload;
     },
     method: 'QUERY',
   });
