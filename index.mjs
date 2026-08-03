@@ -28,12 +28,12 @@ const createOnRouteHandler = ({
   filterReply = ({ statusCode }) => 200 <= statusCode && statusCode < 300,
   filterRequest = ({ method }) => method === 'GET',
   queryFn = query,
-}) => function fastifyQueryJsonpathOnRoute(route) {
-  const { handler } = route;
-  if (!routeMatch.call(filterRequest, route))
+}) => function fastifyQueryJsonpathOnRoute(routeOptions) {
+  const { handler } = routeOptions;
+  if (!routeMatch.call(filterRequest, routeOptions))
     return;
   this.route({
-    ...route,
+    ...routeOptions,
     async handler(request, reply) {
       const { headers: { ['content-type']: requestContentType } } = request;
       if (requestContentType.split(';', 1)[0].trim().toLowerCase() !== contentType)
