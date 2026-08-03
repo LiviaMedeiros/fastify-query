@@ -55,16 +55,16 @@ const createOnRouteHandler = ({
         throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
       return handler.call(this, request, reply);
     },
-    [kParentRoute]: routeOptions,
+    method: 'QUERY',
     preSerialization: [
       ...preSerialization,
       async ({ body }, reply, payload) => filterReply(reply) ? queryFn(payload, body) : payload,
     ],
-    method: 'QUERY',
+    [kParentRoute]: routeOptions,
   });
 };
 
-export default fp(async (fastify, opts) => {
+export async function fastifyQueryJsonpath(fastify, opts) {
   const { contentType } = (opts = {
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
     baseMethod: 'GET',
@@ -77,7 +77,9 @@ export default fp(async (fastify, opts) => {
   fastify
     .addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body)
     .addHook('onRoute', createOnRouteHandler(opts));
-}, {
+}
+
+export default fp(fastifyQueryJsonpath, {
   fastify: '5.x',
   name: 'fastify-query-jsonpath',
 });
