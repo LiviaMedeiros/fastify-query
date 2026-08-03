@@ -4,6 +4,8 @@ import { query } from 'jsonpath-rfc9535';
 
 const { FST_ERR_CTP_INVALID_MEDIA_TYPE } = errorCodes;
 
+const kParentRoute = Symbol('parent-route');
+
 function routeMatch(route) {
   const { url } = route;
   switch (typeof this) {
@@ -23,25 +25,37 @@ function routeMatch(route) {
 }
 
 const createOnRouteHandler = ({
-  addAcceptQuery = true,
+  advertiseAcceptQuery = ['GET', 'HEAD', 'QUERY'],
+  baseMethod = 'GET',
   contentType = 'application/jsonpath',
   filterReply = ({ statusCode }) => 200 <= statusCode && statusCode < 300,
-  filterRequest = ({ method }) => method === 'GET',
+  filterRequest = true,
   queryFn = query,
 }) => function fastifyQueryJsonpathOnRoute(routeOptions) {
-  const { handler, preSerialization = [] } = routeOptions;
   if (!routeMatch.call(filterRequest, routeOptions))
     return;
-  this.route({
+
+  const { handler, method, onSend, preSerialization = [] } = routeOptions;
+
+  if (advertiseAcceptQuery?.includes(method)) {
+    async function fastifyQueryJsonpathOnSend(request, reply, payload) {
+      reply.header('accept-query', contentType);
+      return payload;
+    };
+    Array.isArray(onSend)
+      ? onSend.push(fastifyQueryJsonpathOnSend)
+      : (routeOptions.onSend = onSend ? [onSend, fastifyQueryJsonpathOnSend] : fastifyQueryJsonpathOnSend);
+  }
+
+  method === baseMethod && this.route({
     ...routeOptions,
     async handler(request, reply) {
       const { headers: { ['content-type']: requestContentType } } = request;
       if (requestContentType.split(';', 1)[0].trim().toLowerCase() !== contentType)
         throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
-      if (addAcceptQuery)
-        reply.header('accept-query', contentType);
       return handler.call(this, request, reply);
     },
+    [kParentRoute]: routeOptions,
     preSerialization: [
       ...preSerialization,
       async ({ body }, reply, payload) => filterReply(reply) ? queryFn(payload, body) : payload,
