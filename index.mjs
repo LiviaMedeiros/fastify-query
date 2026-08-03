@@ -28,11 +28,13 @@ const createOnRouteHandler = ({
   advertiseAcceptQuery,
   baseMethod,
   contentType,
+  excludeReply,
+  excludeRequest,
   filterReply,
   filterRequest,
   queryFn,
 }) => function fastifyQueryJsonpathOnRoute(routeOptions) {
-  if (!routeMatch.call(filterRequest, routeOptions))
+  if (!routeMatch.call(filterRequest, routeOptions) || routeMatch.call(excludeRequest, routeOptions))
     return;
 
   const { handler, method, onSend, preSerialization = [] } = routeOptions;
@@ -58,7 +60,7 @@ const createOnRouteHandler = ({
     method: 'QUERY',
     preSerialization: [
       ...preSerialization,
-      async ({ body }, reply, payload) => filterReply(reply) ? queryFn(payload, body) : payload,
+      async ({ body }, reply, payload) => filterReply(reply) && !excludeReply(reply) ? queryFn(payload, body) : payload,
     ],
     [kParentRoute]: routeOptions,
   });
@@ -69,6 +71,8 @@ export async function fastifyQueryJsonpath(fastify, opts) {
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
     baseMethod: 'GET',
     contentType: 'application/jsonpath',
+    excludeReply: () => false,
+    excludeRequest: false,
     filterReply: ({ statusCode }) => 200 <= statusCode && statusCode < 300,
     filterRequest: true,
     queryFn: query,

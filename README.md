@@ -50,6 +50,8 @@ curl -X QUERY -H 'Content-Type: application/jsonpath' -d '$[?@.role=="user"]' ht
 | `advertiseAcceptQuery` | `string[]`                                                             | `['GET', 'HEAD', 'QUERY']`      | HTTP methods on which the `Accept-Query` header should be set             |
 | `baseMethod`           | `string`                                                               | `'GET'`                         | Original method implementing server logic for the route                   |
 | `contentType`          | `string`                                                               | `'application/jsonpath'`        | Content type expected for QUERY requests and advertised in `Accept-Query` |
+| `excludeReply`         | `(reply) => boolean`                                                   | `() => false`                   | Whether to not apply the JSONPath filter to the response payload          |
+| `excludeRequest`       | `boolean \| string \| RegExp \| string[] \| Set \| (route) => boolean` | `false`                         | Excludes which routes receive a `QUERY` variant                           |
 | `filterReply`          | `(reply) => boolean`                                                   | status code is 2xx              | Whether to apply the JSONPath filter to the response payload              |
 | `filterRequest`        | `boolean \| string \| RegExp \| string[] \| Set \| (route) => boolean` | `true`                          | Filters which routes receive a `QUERY` variant                            |
 | `queryFn`              | `(document, jsonpath) => nodelist`                                     | `query` from `jsonpath-rfc9535` | Function that evaluates JSONPath expression against the full response     |
