@@ -25,12 +25,12 @@ function routeMatch(route) {
 }
 
 const createOnRouteHandler = ({
-  advertiseAcceptQuery = ['GET', 'HEAD', 'QUERY'],
-  baseMethod = 'GET',
-  contentType = 'application/jsonpath',
-  filterReply = ({ statusCode }) => 200 <= statusCode && statusCode < 300,
-  filterRequest = true,
-  queryFn = query,
+  advertiseAcceptQuery,
+  baseMethod,
+  contentType,
+  filterReply,
+  filterRequest,
+  queryFn,
 }) => function fastifyQueryJsonpathOnRoute(routeOptions) {
   if (!routeMatch.call(filterRequest, routeOptions))
     return;
@@ -64,10 +64,19 @@ const createOnRouteHandler = ({
   });
 };
 
-export default fp(async (fastify, options) => {
+export default fp(async (fastify, opts) => {
+  const { contentType } = (opts = {
+    advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
+    baseMethod: 'GET',
+    contentType: 'application/jsonpath',
+    filterReply: ({ statusCode }) => 200 <= statusCode && statusCode < 300,
+    filterRequest: true,
+    queryFn: query,
+    ...opts,
+  });
   fastify
-    .addContentTypeParser('application/jsonpath', { parseAs: 'string' }, async (request, body) => body)
-    .addHook('onRoute', createOnRouteHandler(options));
+    .addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body)
+    .addHook('onRoute', createOnRouteHandler(opts));
 }, {
   fastify: '5.x',
   name: 'fastify-query-jsonpath',
