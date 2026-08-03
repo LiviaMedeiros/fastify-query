@@ -29,7 +29,7 @@ const createOnRouteHandler = ({
   filterRequest = ({ method }) => method === 'GET',
   queryFn = query,
 }) => function fastifyQueryJsonpathOnRoute(routeOptions) {
-  const { handler } = routeOptions;
+  const { handler, preSerialization = [] } = routeOptions;
   if (!routeMatch.call(filterRequest, routeOptions))
     return;
   this.route({
@@ -42,9 +42,10 @@ const createOnRouteHandler = ({
         reply.header('accept-query', contentType);
       return handler.call(this, request, reply);
     },
-    async preSerialization({ body }, reply, payload) {
-      return filterReply(reply) ? queryFn(payload, body) : payload;
-    },
+    preSerialization: [
+      ...preSerialization,
+      async ({ body }, reply, payload) => filterReply(reply) ? queryFn(payload, body) : payload,
+    ],
     method: 'QUERY',
   });
 };
