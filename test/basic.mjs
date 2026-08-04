@@ -227,7 +227,6 @@ test('rejects wrong content type', async (t) => {
     payload: '$.value',
   });
   assert.equal(res.statusCode, 415);
-  assert.equal(res.json().code, 'FST_ERR_CTP_INVALID_MEDIA_TYPE');
 });
 
 test('accepts content type parameters', async (t) => {

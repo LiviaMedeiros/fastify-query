@@ -1,9 +1,9 @@
 import fp from 'fastify-plugin';
-import { errorCodes } from 'fastify';
+import { httpErrors } from '@fastify/sensible';
 import { query as queryJsonpath } from 'jsonpath-rfc9535';
 import { get as queryJsonpointer } from 'jsonpointer';
 
-const { FST_ERR_CTP_INVALID_MEDIA_TYPE } = errorCodes;
+const { badRequest, unsupportedMediaType } = httpErrors;
 
 const kFastifyQueryRoute = Symbol('fastify-query-route');
 const kParentRoute = Symbol('parent-route');
@@ -70,10 +70,17 @@ const createOnRouteHandler = ({
         const queryFn = queryTypes[requestContentType.split(';', 1)[0].trim().toLowerCase()];
 
         if (!queryFn)
-          throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
+          throw unsupportedMediaType(`Unsupported Media Type; must be one of: ${acceptQuery}`);
 
-        request[kQueryFn] = queryFn;
-        return handler.call(this, request, reply);
+        return handler.call(this, Object.assign(request, {
+          [kQueryFn]: function(document, path) {
+            try {
+              return queryFn(document, path);
+            } catch (cause) {
+              throw Object.assign(badRequest(), { cause });
+            }
+          },
+        }), reply);
       },
       method: 'QUERY',
       preSerialization: [
