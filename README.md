@@ -8,6 +8,26 @@ Its main purpose is to be a drop-in solution for servers that already serve larg
 
 Clients can send a query expression in the request body (using `Content-Type: application/jsonpath` or `application/jsonpointer`) and receive a filtered version of the original response payload.
 
+## Where/why is it needed?
+
+Any API where the server provides arrays and objects with a lot of data, while the client has specific purpose and needs only specific entries.
+Which is almost any API, depending on how you define "a lot".
+
+For example, take a look at GitHub's [REST API endpoints for repositories](https://docs.github.com/en/rest/repos/repos). Scroll through example responses and responses schemas. Have you ever needed _all_ of these? And how often do you need less than 5 scalar fields?
+The `gh` utility has builtin `--jq` option for a reason. However, just like `| jq` pipelines or any other further processing, this is purely client-side: the network traffic is still bloated with unused data, server still serializes whole thing and client still deserializes whole thing.
+
+In the typical usecase, the server doesn't care too much. It runs on a cluster of some Xeon Diamond 9000, has terabytes of RAM, multiple layers of cache, and gigantic uplinks. But for clients, it's noticeable amount of wasted memory and network resources.
+
+Before HTTP `QUERY` became a thing, there was no well-standardised, flexible way to achieve this. Nowadays, hopefully this package shows how easy and convenient can it be.
+
+If you are implementing `QUERY`-based filtering on your server to process it immediately and lower resource consumption by retrieving only specific data, this package can be useful as well: use it to enable `QUERY` support globally, and then gradually populate `excludeRequest` option with endpoints that have your internal business logic updated.
+
+## Installation
+
+```console
+npm i fastify-query
+```
+
 ## Usage
 
 ```mjs
@@ -142,7 +162,8 @@ await app.register(fastifyQuery, {
 
 ## Contributing
 
-Contributions are welcome.
+Contributions made by humans are welcome.
+This includes contributions made with non-human assistance, as long as the human submitter takes full responsibility: understands the changes to the dot, verified and tested them.
 
 ## License
 
