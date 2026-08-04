@@ -112,7 +112,7 @@ export async function fastifyQuery(fastify, opts) {
   Object.keys({
     ...overrideQueryTypes,
     ...addQueryTypes,
-  }).forEach(contentType => fastify.addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body));
+  }).forEach(contentType => fastify.hasContentTypeParser(contentType) || fastify.addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body));
   fastify.addHook('onRoute', createOnRouteHandler(opts));
 }
 
