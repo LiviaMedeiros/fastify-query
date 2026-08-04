@@ -1,10 +1,12 @@
 import fp from 'fastify-plugin';
 import { errorCodes } from 'fastify';
-import { query } from 'jsonpath-rfc9535';
+import { query as queryJsonpath } from 'jsonpath-rfc9535';
+import { get as queryJsonpointer } from 'jsonpointer';
 
 const { FST_ERR_CTP_INVALID_MEDIA_TYPE } = errorCodes;
 
 const kParentRoute = Symbol('parent-route');
+const kQueryFn = Symbol('query-fn');
 
 function routeMatch(route) {
   const { url } = route;
@@ -24,63 +26,77 @@ function routeMatch(route) {
   }
 }
 
+export const defaultQueryTypes = Object.freeze({
+  'application/jsonpath': queryJsonpath,
+  'application/jsonpointer': queryJsonpointer,
+});
+
 const createOnRouteHandler = ({
+  addQueryTypes,
   advertiseAcceptQuery,
   baseMethod,
-  contentType,
   excludeReply,
   excludeRequest,
   filterReply,
   filterRequest,
-  queryFn,
-}) => function fastifyQueryJsonpathOnRoute(routeOptions) {
-  if (!routeMatch.call(filterRequest, routeOptions) || routeMatch.call(excludeRequest, routeOptions))
-    return;
+  overrideQueryTypes,
+}) => {
+  const queryTypes = { ...overrideQueryTypes, ...addQueryTypes };
+  const acceptQuery = Object.keys(queryTypes).join(', ');
 
-  const { handler, method, onSend, preSerialization = [] } = routeOptions;
+  return function fastifyQueryJsonpathOnRoute(routeOptions) {
+    if (!routeMatch.call(filterRequest, routeOptions) || routeMatch.call(excludeRequest, routeOptions))
+      return;
 
-  if (advertiseAcceptQuery?.includes(method)) {
-    async function fastifyQueryJsonpathOnSend(request, reply, payload) {
-      reply.header('accept-query', contentType);
-      return payload;
-    };
-    Array.isArray(onSend)
-      ? onSend.push(fastifyQueryJsonpathOnSend)
-      : (routeOptions.onSend = onSend ? [onSend, fastifyQueryJsonpathOnSend] : fastifyQueryJsonpathOnSend);
-  }
+    const { handler, method, onSend, preSerialization = [] } = routeOptions;
 
-  method === baseMethod && this.route({
-    ...routeOptions,
-    async handler(request, reply) {
-      const { headers: { ['content-type']: requestContentType } } = request;
-      if (requestContentType.split(';', 1)[0].trim().toLowerCase() !== contentType)
-        throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
-      return handler.call(this, request, reply);
-    },
-    method: 'QUERY',
-    preSerialization: [
-      ...preSerialization,
-      async ({ body }, reply, payload) => filterReply(reply) && !excludeReply(reply) ? queryFn(payload, body) : payload,
-    ],
-    [kParentRoute]: routeOptions,
-  });
+    if (advertiseAcceptQuery?.includes(method)) {
+      async function fastifyQueryJsonpathOnSend(request, reply, payload) {
+        reply.header('accept-query', acceptQuery);
+        return payload;
+      };
+      Array.isArray(onSend)
+        ? onSend.push(fastifyQueryJsonpathOnSend)
+        : (routeOptions.onSend = onSend ? [onSend, fastifyQueryJsonpathOnSend] : fastifyQueryJsonpathOnSend);
+    }
+
+    method === baseMethod && this.route({
+      ...routeOptions,
+      async handler(request, reply) {
+        const { headers: { ['content-type']: requestContentType } } = request;
+        const queryFn = queryTypes[requestContentType.split(';', 1)[0].trim().toLowerCase()];
+
+        if (!queryFn)
+          throw FST_ERR_CTP_INVALID_MEDIA_TYPE();
+
+        request[kQueryFn] = queryFn;
+        return handler.call(this, request, reply);
+      },
+      method: 'QUERY',
+      preSerialization: [
+        ...preSerialization,
+        async (request, reply, payload) => filterReply(reply) && !excludeReply(reply) ? request[kQueryFn](payload, request.body) : payload,
+      ],
+      [kParentRoute]: routeOptions,
+    });
+  };
 };
 
 export async function fastifyQueryJsonpath(fastify, opts) {
-  const { contentType } = (opts = {
+  const { overrideQueryTypes, addQueryTypes } = (opts = {
+    addQueryTypes: {},
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
     baseMethod: 'GET',
-    contentType: 'application/jsonpath',
     excludeReply: () => false,
     excludeRequest: false,
     filterReply: ({ statusCode }) => 200 <= statusCode && statusCode < 300,
     filterRequest: true,
-    queryFn: query,
+    overrideQueryTypes: defaultQueryTypes,
     ...opts,
   });
-  fastify
-    .addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body)
-    .addHook('onRoute', createOnRouteHandler(opts));
+
+  Object.keys({ ...overrideQueryTypes, ...addQueryTypes }).forEach((contentType) => fastify.addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body));
+  fastify.addHook('onRoute', createOnRouteHandler(opts));
 }
 
 export default fp(fastifyQueryJsonpath, {

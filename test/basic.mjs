@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
-import fastifyQuestJsonpath from '../index.mjs';
+import fastifyQuestJsonpath, { defaultQueryTypes } from '../index.mjs';
 
 const createApp = async (opts = {}) => {
   const app = Fastify();
@@ -92,7 +92,7 @@ test('adds accept-query to advertised methods', async (t) => {
   app.get('/data', async () => ({ value: 1 }));
   await app.ready();
   const res = await app.inject({ method: 'GET', url: '/data' });
-  assert.equal(res.headers['accept-query'], 'application/jsonpath');
+  assert.equal(res.headers['accept-query'], 'application/jsonpath, application/jsonpointer');
 });
 
 test('does not advertise disabled methods', async (t) => {
@@ -104,8 +104,12 @@ test('does not advertise disabled methods', async (t) => {
   assert.equal(res.headers['accept-query'], undefined);
 });
 
-test('supports custom content type', async (t) => {
-  const app = await createApp({ contentType: 'application/x-jsonpath' });
+test('supports custom content type via addQueryTypes', async (t) => {
+  const app = await createApp({
+    addQueryTypes: {
+      'application/x-jsonpath': defaultQueryTypes['application/jsonpath'],
+    },
+  });
   t.after(() => app.close());
   app.get('/data', async () => ({ value: 1 }));
   await app.ready();
@@ -117,6 +121,98 @@ test('supports custom content type', async (t) => {
   });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.json(), [1]);
+});
+
+test('supports custom content type via overrideQueryTypes', async (t) => {
+  const app = await createApp({
+    overrideQueryTypes: {
+      'application/x-jsonpath': defaultQueryTypes['application/jsonpath'],
+    },
+  });
+  t.after(() => app.close());
+  app.get('/data', async () => ({ value: 1 }));
+  await app.ready();
+  const res = await app.inject({
+    method: 'QUERY',
+    url: '/data',
+    headers: { 'content-type': 'application/x-jsonpath' },
+    payload: '$.value',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), [1]);
+});
+
+test('overrideQueryTypes replaces default query types', async (t) => {
+  const app = await createApp({
+    overrideQueryTypes: {
+      'application/x-jsonpath': defaultQueryTypes['application/jsonpath'],
+    },
+  });
+  t.after(() => app.close());
+  app.get('/data', async () => ({ value: 1 }));
+  await app.ready();
+  const resDefault = await query(app, '/data', '$.value');
+  assert.equal(resDefault.statusCode, 415);
+  const resCustom = await app.inject({
+    method: 'QUERY',
+    url: '/data',
+    headers: { 'content-type': 'application/x-jsonpath' },
+    payload: '$.value',
+  });
+  assert.equal(resCustom.statusCode, 200);
+  assert.deepEqual(resCustom.json(), [1]);
+  const resGet = await app.inject({ method: 'GET', url: '/data' });
+  assert.equal(resGet.headers['accept-query'], 'application/x-jsonpath');
+});
+
+test('addQueryTypes adds query types without overwriting', async (t) => {
+  const app = await createApp({
+    addQueryTypes: {
+      'application/x-jsonpath': defaultQueryTypes['application/jsonpath'],
+    },
+  });
+  t.after(() => app.close());
+  app.get('/data', async () => ({ value: 1 }));
+  await app.ready();
+  const resDefault = await query(app, '/data', '$.value');
+  assert.equal(resDefault.statusCode, 200);
+  assert.deepEqual(resDefault.json(), [1]);
+  const resCustom = await app.inject({
+    method: 'QUERY',
+    url: '/data',
+    headers: { 'content-type': 'application/x-jsonpath' },
+    payload: '$.value',
+  });
+  assert.equal(resCustom.statusCode, 200);
+  assert.deepEqual(resCustom.json(), [1]);
+  const resGet = await app.inject({ method: 'GET', url: '/data' });
+  assert.equal(
+    resGet.headers['accept-query'],
+    'application/jsonpath, application/jsonpointer, application/x-jsonpath',
+  );
+});
+
+test('addQueryTypes overwrites on collision while keeping other types', async (t) => {
+  const customFn = () => ['custom'];
+  const app = await createApp({
+    addQueryTypes: {
+      'application/jsonpath': customFn,
+    },
+  });
+  t.after(() => app.close());
+  app.get('/data', async () => ({ value: 1 }));
+  await app.ready();
+  const resJsonpath = await query(app, '/data', '$.value');
+  assert.equal(resJsonpath.statusCode, 200);
+  assert.deepEqual(resJsonpath.json(), ['custom']);
+  const resPointer = await app.inject({
+    method: 'QUERY',
+    url: '/data',
+    headers: { 'content-type': 'application/jsonpointer' },
+    payload: '/value',
+  });
+  assert.equal(resPointer.statusCode, 200);
+  assert.deepEqual(resPointer.json(), 1);
 });
 
 test('rejects wrong content type', async (t) => {
@@ -146,6 +242,21 @@ test('accepts content type parameters', async (t) => {
     payload: '$.value',
   });
   assert.deepEqual(res.json(), [1]);
+});
+
+test('supports application/jsonpointer', async (t) => {
+  const app = await createApp();
+  t.after(() => app.close());
+  app.get('/data', async () => ({ user: { id: 42, name: 'alice' } }));
+  await app.ready();
+  const res = await app.inject({
+    method: 'QUERY',
+    url: '/data',
+    headers: { 'content-type': 'application/jsonpointer' },
+    payload: '/user/id',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), 42);
 });
 
 test('filterRequest function controls generated query routes', async (t) => {
