@@ -9,7 +9,7 @@ const { message: unsupportedMediaTypeMessage } = unsupportedMediaType();
 
 const kFastifyQueryRoute = Symbol('fastify-query-route');
 const kParentRoute = Symbol('parent-route');
-const kQueryFn = Symbol('query-fn');
+const queryFnMap = new WeakMap();
 
 function routeMatch(route) {
   const { url } = route;
@@ -68,27 +68,27 @@ const createOnRouteHandler = ({
     method === baseMethod && this.route({
       ...routeOptions,
       async handler(request, reply) {
-        const { headers: { ['content-type']: requestContentType } } = request;
+        const { body, headers: { ['content-type']: requestContentType } } = request;
         const queryFn = queryTypes[requestContentType.split(';', 1)[0].trim().toLowerCase()];
 
         if (!queryFn)
           throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`);
 
-        return handler.call(this, Object.assign(request, {
-          [kQueryFn]: function(document, path) {
-            try {
-              return queryFn(document, path);
-            } catch (cause) {
-              const { message } = cause;
-              throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause });
-            }
-          },
-        }), reply);
+        queryFnMap.set(request, (function(document) {
+          try {
+            return queryFn(document, this);
+          } catch (cause) {
+            const { message } = cause;
+            throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause });
+          }
+        }).bind(body));
+
+        return handler.call(this, request, reply);
       },
       method: 'QUERY',
       preSerialization: [
         ...preSerialization,
-        async ({ [kQueryFn]: queryFn, body }, reply, payload) => filterReply(reply) && !excludeReply(reply) ? queryFn(payload, body) : payload,
+        async (request, reply, payload) => filterReply(reply) && !excludeReply(reply) ? queryFnMap.get(request)(payload) : payload,
       ],
       [kFastifyQueryRoute]: true,
       [kParentRoute]: routeOptions,
@@ -109,7 +109,10 @@ export async function fastifyQuery(fastify, opts) {
     ...opts,
   });
 
-  Object.keys({ ...overrideQueryTypes, ...addQueryTypes }).forEach((contentType) => fastify.addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body));
+  Object.keys({
+    ...overrideQueryTypes,
+    ...addQueryTypes,
+  }).forEach(contentType => fastify.addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body));
   fastify.addHook('onRoute', createOnRouteHandler(opts));
 }
 
