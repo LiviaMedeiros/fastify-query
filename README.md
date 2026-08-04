@@ -157,8 +157,8 @@ await app.register(fastifyQuery, {
 - `Accept-Query` is added using `onSend` hooks.
 - New `QUERY` route is registered via `onRoute` hook.
 - Filtering is done in `preSerialization` hook using the query function matched by the request's `Content-Type`.
-- By default, JSONPath filtering uses the `jsonpath-rfc9535` package.
-- By default, JSON Pointer filtering uses the `jsonpointer` package.
+- By default, JSONPath filtering uses the [`jsonpath-rfc9535`](https://www.npmjs.com/package/jsonpath-rfc9535) package.
+- By default, JSON Pointer filtering uses the [`jsonpointer`](https://www.npmjs.com/package/jsonpointer) package.
 
 ## Contributing
 
