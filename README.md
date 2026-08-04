@@ -1,6 +1,6 @@
-# fastify-query-jsonpath
+# fastify-query
 
-[![npm](https://img.shields.io/npm/v/fastify-query-jsonpath.svg)](https://www.npmjs.com/package/fastify-query-jsonpath)
+[![npm](https://img.shields.io/npm/v/fastify-query.svg)](https://www.npmjs.com/package/fastify-query)
 
 A Fastify plugin that automatically adds [`QUERY` method](https://www.rfc-editor.org/rfc/rfc10008) handlers with [`JSONPath`](https://www.rfc-editor.org/rfc/rfc9535) and [`JSON Pointer`](https://www.rfc-editor.org/rfc/rfc6901) filtering.
 
@@ -13,11 +13,11 @@ Clients can send a query expression in the request body (using `Content-Type: ap
 ```mjs
 // server
 import Fastify from 'fastify';
-import fastifyQueryJsonpath from 'fastify-query-jsonpath';
+import fastifyQuery from 'fastify-query';
 
 const app = Fastify();
 
-await app.register(fastifyQueryJsonpath); // this does the trick!
+await app.register(fastifyQuery); // this does the trick!
 
 app.get('/users', async () => {
   return [
@@ -71,7 +71,7 @@ curl -X QUERY -H 'Content-Type: application/jsonpointer' -d '/1/name' http://loc
 The plugin exports `defaultQueryTypes`:
 
 ```mjs
-import { defaultQueryTypes } from 'fastify-query-jsonpath';
+import { defaultQueryTypes } from 'fastify-query';
 
 // {
 //   'application/jsonpath': queryJsonpath,       // `query` from jsonpath-rfc9535
@@ -103,17 +103,17 @@ filterRequest: ({ url }) => url.startsWith('/api') || url.endsWith('.json')
 ### Custom query types examples
 
 ```js
-import fastifyQueryJsonpath, { defaultQueryTypes } from 'fastify-query-jsonpath';
+import fastifyQuery, { defaultQueryTypes } from 'fastify-query';
 
 // Add a custom content type alongside the defaults
-await app.register(fastifyQueryJsonpath, {
+await app.register(fastifyQuery, {
   addQueryTypes: {
     'application/x-jsonpath': defaultQueryTypes['application/jsonpath'],
   },
 });
 
 // Replace defaults entirely
-await app.register(fastifyQueryJsonpath, {
+await app.register(fastifyQuery, {
   overrideQueryTypes: {
     'application/xpath': (document, query) => {
       // your implementation

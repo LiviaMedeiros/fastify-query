@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
-import fastifyQuestJsonpath, { defaultQueryTypes } from '../index.mjs';
+import fastifyQuest, { defaultQueryTypes } from '../index.mjs';
 
 const createApp = async (opts = {}) => {
   const app = Fastify();
-  await app.register(fastifyQuestJsonpath, opts);
+  await app.register(fastifyQuest, opts);
   return app;
 };
 

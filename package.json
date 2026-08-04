@@ -1,18 +1,22 @@
 {
-  "name": "fastify-query-jsonpath",
-  "version": "0.0.1",
-  "description": "Fastify plugin for QUERY routes with JSONPath payloads",
+  "name": "fastify-query",
+  "version": "0.1.0",
+  "description": "Fastify plugin for QUERY routes with JSONPath and JSON Pointer filtering",
   "type": "module",
   "main": "./index.mjs",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LiviaMedeiros/fastify-query-jsonpath.git"
+    "url": "git+https://github.com/LiviaMedeiros/fastify-query.git"
   },
   "keywords": [
     "fastify",
+    "fastify-plugin",
     "query",
+    "http-query",
+    "rfc6901",
     "rfc9535",
+    "rfc10008",
     "jsonpath"
   ],
   "author": {
@@ -33,9 +37,9 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/LiviaMedeiros/fastify-query-jsonpath/issues"
+    "url": "https://github.com/LiviaMedeiros/fastify-query/issues"
   },
-  "homepage": "https://github.com/LiviaMedeiros/fastify-query-jsonpath#readme",
+  "homepage": "https://github.com/LiviaMedeiros/fastify-query#readme",
   "dependencies": {
     "fastify": "^5.11.0",
     "fastify-plugin": "^6.0.0",

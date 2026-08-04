@@ -44,20 +44,20 @@ const createOnRouteHandler = ({
   const queryTypes = { ...overrideQueryTypes, ...addQueryTypes };
   const acceptQuery = Object.keys(queryTypes).join(', ');
 
-  return function fastifyQueryJsonpathOnRoute(routeOptions) {
+  return function fastifyQueryOnRoute(routeOptions) {
     if (!routeMatch.call(filterRequest, routeOptions) || routeMatch.call(excludeRequest, routeOptions))
       return;
 
     const { handler, method, onSend, preSerialization = [] } = routeOptions;
 
     if (advertiseAcceptQuery?.includes(method)) {
-      async function fastifyQueryJsonpathOnSend(request, reply, payload) {
+      async function fastifyQueryOnSend(request, reply, payload) {
         reply.header('accept-query', acceptQuery);
         return payload;
       };
       Array.isArray(onSend)
-        ? onSend.push(fastifyQueryJsonpathOnSend)
-        : (routeOptions.onSend = onSend ? [onSend, fastifyQueryJsonpathOnSend] : fastifyQueryJsonpathOnSend);
+        ? onSend.push(fastifyQueryOnSend)
+        : (routeOptions.onSend = onSend ? [onSend, fastifyQueryOnSend] : fastifyQueryOnSend);
     }
 
     method === baseMethod && this.route({
@@ -82,7 +82,7 @@ const createOnRouteHandler = ({
   };
 };
 
-export async function fastifyQueryJsonpath(fastify, opts) {
+export async function fastifyQuery(fastify, opts) {
   const { overrideQueryTypes, addQueryTypes } = (opts = {
     addQueryTypes: {},
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
@@ -99,7 +99,7 @@ export async function fastifyQueryJsonpath(fastify, opts) {
   fastify.addHook('onRoute', createOnRouteHandler(opts));
 }
 
-export default fp(fastifyQueryJsonpath, {
+export default fp(fastifyQuery, {
   fastify: '5.x',
-  name: 'fastify-query-jsonpath',
+  name: 'fastify-query',
 });
