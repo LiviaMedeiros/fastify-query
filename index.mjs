@@ -5,6 +5,7 @@ import { get as queryJsonpointer } from 'jsonpointer';
 
 const { FST_ERR_CTP_INVALID_MEDIA_TYPE } = errorCodes;
 
+const kFastifyQueryRoute = Symbol('fastify-query-route');
 const kParentRoute = Symbol('parent-route');
 const kQueryFn = Symbol('query-fn');
 
@@ -45,7 +46,9 @@ const createOnRouteHandler = ({
   const acceptQuery = Object.keys(queryTypes).join(', ');
 
   return function fastifyQueryOnRoute(routeOptions) {
-    if (!routeMatch.call(filterRequest, routeOptions) || routeMatch.call(excludeRequest, routeOptions))
+    if (routeOptions[kFastifyQueryRoute] ||
+        !routeMatch.call(filterRequest, routeOptions) ||
+        routeMatch.call(excludeRequest, routeOptions))
       return;
 
     const { handler, method, onSend, preSerialization = [] } = routeOptions;
@@ -77,6 +80,7 @@ const createOnRouteHandler = ({
         ...preSerialization,
         async (request, reply, payload) => filterReply(reply) && !excludeReply(reply) ? request[kQueryFn](payload, request.body) : payload,
       ],
+      [kFastifyQueryRoute]: true,
       [kParentRoute]: routeOptions,
     });
   };
