@@ -4,6 +4,8 @@ import { query as queryJsonpath } from 'jsonpath-rfc9535';
 import { get as queryJsonpointer } from 'jsonpointer';
 
 const { badRequest, unsupportedMediaType } = httpErrors;
+const { message: badRequestMessage } = badRequest();
+const { message: unsupportedMediaTypeMessage } = unsupportedMediaType();
 
 const kFastifyQueryRoute = Symbol('fastify-query-route');
 const kParentRoute = Symbol('parent-route');
@@ -70,14 +72,15 @@ const createOnRouteHandler = ({
         const queryFn = queryTypes[requestContentType.split(';', 1)[0].trim().toLowerCase()];
 
         if (!queryFn)
-          throw unsupportedMediaType(`Unsupported Media Type; must be one of: ${acceptQuery}`);
+          throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`);
 
         return handler.call(this, Object.assign(request, {
           [kQueryFn]: function(document, path) {
             try {
               return queryFn(document, path);
             } catch (cause) {
-              throw Object.assign(badRequest(), { cause });
+              const { message } = cause;
+              throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause });
             }
           },
         }), reply);
@@ -85,7 +88,7 @@ const createOnRouteHandler = ({
       method: 'QUERY',
       preSerialization: [
         ...preSerialization,
-        async (request, reply, payload) => filterReply(reply) && !excludeReply(reply) ? request[kQueryFn](payload, request.body) : payload,
+        async ({ [kQueryFn]: queryFn, body }, reply, payload) => filterReply(reply) && !excludeReply(reply) ? queryFn(payload, body) : payload,
       ],
       [kFastifyQueryRoute]: true,
       [kParentRoute]: routeOptions,
