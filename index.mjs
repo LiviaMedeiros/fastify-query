@@ -11,6 +11,11 @@ const kFastifyQueryRoute = Symbol('fastify-query-route');
 const kParentRoute = Symbol('parent-route');
 const queryFnMap = new WeakMap();
 
+const defaultQueryTypes = Object.freeze({
+  'application/jsonpath': queryJsonpath,
+  'application/jsonpointer': queryJsonpointer,
+});
+
 function routeMatch(route) {
   const { url } = route;
   switch (typeof this) {
@@ -31,10 +36,6 @@ function routeMatch(route) {
 
 const getContentType = ({ ['content-type']: requestContentType }) => requestContentType.split(';', 1)[0].trim().toLowerCase();
 
-export const defaultQueryTypes = Object.freeze({
-  'application/jsonpath': queryJsonpath,
-  'application/jsonpointer': queryJsonpointer,
-});
 
 const createOnRouteHandler = ({
   addQueryTypes,
@@ -98,7 +99,7 @@ const createOnRouteHandler = ({
   };
 };
 
-export async function fastifyQuery(fastify, opts) {
+async function fastifyQuery(fastify, opts) {
   const { overrideQueryTypes, addQueryTypes } = (opts = {
     addQueryTypes: {},
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
@@ -122,3 +123,8 @@ export default fp(fastifyQuery, {
   fastify: '5.x',
   name: 'fastify-query',
 });
+
+export {
+  defaultQueryTypes,
+  fastifyQuery,
+};
