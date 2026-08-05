@@ -29,6 +29,8 @@ function routeMatch(route) {
   }
 }
 
+const getContentType = ({ ['content-type']: requestContentType }) => requestContentType.split(';', 1)[0].trim().toLowerCase();
+
 export const defaultQueryTypes = Object.freeze({
   'application/jsonpath': queryJsonpath,
   'application/jsonpointer': queryJsonpointer,
@@ -68,8 +70,8 @@ const createOnRouteHandler = ({
     method === baseMethod && this.route({
       ...routeOptions,
       async handler(request, reply) {
-        const { body, headers: { ['content-type']: requestContentType } } = request;
-        const queryFn = queryTypes[requestContentType.split(';', 1)[0].trim().toLowerCase()];
+        const { body, headers } = request;
+        const queryFn = queryTypes[getContentType(headers)];
 
         if (!queryFn)
           throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`);
