@@ -34,9 +34,6 @@ function routeMatch(route) {
   }
 }
 
-const getContentType = ({ ['content-type']: requestContentType }) => requestContentType.split(';', 1)[0].trim().toLowerCase();
-
-
 const createOnRouteHandler = ({
   addQueryTypes,
   advertiseAcceptQuery,
@@ -71,8 +68,8 @@ const createOnRouteHandler = ({
     method === baseMethod && this.route({
       ...routeOptions,
       async handler(request, reply) {
-        const { body, headers } = request;
-        const queryFn = queryTypes[getContentType(headers)];
+        const { body, headers, mediaType } = request;
+        const queryFn = queryTypes[mediaType];
 
         if (!queryFn)
           throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`);
