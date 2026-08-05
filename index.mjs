@@ -36,7 +36,7 @@ function routeMatch(route) {
       case Array.isArray(this): return this.includes(url);
       case this instanceof RegExp: return this.test(url);
       default:
-    }
+    } break;
     default: return true;
   }
 }
@@ -52,7 +52,7 @@ const createSendQuery = ({ queryTypes = defaultQueryTypes, strict }) => async fu
     const { message } = cause;
     throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause });
   }));
-}
+};
 
 const createOnRouteHandler = ({
   advertiseAcceptQuery,
