@@ -41,7 +41,7 @@ function routeMatch(route) {
   }
 }
 
-const createSendQuery = (queryTypes = defaultQueryTypes, strict) => async function sendQuery(data) {
+const createSendQuery = ({ queryTypes = defaultQueryTypes, strict }) => async function sendQuery(data) {
   const { request: { body, headers, mediaType } } = this;
   if (!(mediaType in queryTypes)) {
     if (strict ?? isPreferHandlingStrict(headers, this))
@@ -62,7 +62,6 @@ const createOnRouteHandler = ({
   filterReply,
   filterRequest,
   queryTypes,
-  sendQuery,
   strict,
 }) => {
   const acceptQuery = Object.keys(queryTypes).join(', ');
@@ -132,13 +131,14 @@ async function fastifyQuery(fastify, opts) {
     filterReply: ({ statusCode }) => 200 <= statusCode && statusCode < 300,
     filterRequest: true,
     overrideQueryTypes: defaultQueryTypes,
+    strict: null,
     ...opts,
   });
   const queryTypes = {
     ...overrideQueryTypes,
     ...addQueryTypes,
   };
-  const sendQuery = createSendQuery(queryTypes, strict);
+  const sendQuery = createSendQuery({ queryTypes, strict });
 
   Object.entries(queryTypes).forEach(([contentType, queryFn]) => {
     if (typeof queryFn !== 'function')
