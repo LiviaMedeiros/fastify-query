@@ -77,14 +77,16 @@ curl -X QUERY -H 'Content-Type: application/jsonpointer' -d '/1/name' http://loc
 
 | Option                 | Type                                                                   | Default                    | Description                                                                  |
 |------------------------|------------------------------------------------------------------------|----------------------------|------------------------------------------------------------------------------|
-| `advertiseAcceptQuery` | `string[]`                                                             | `['GET', 'HEAD', 'QUERY']` | HTTP methods on which the `Accept-Query` header should be set                |
 | `addQueryTypes`        | `Record<string, (document, query) => value>`                           | `{}`                       | Additional query types to merge on top of defaults (or `overrideQueryTypes`) |
+| `advertiseAcceptQuery` | `string[]`                                                             | `['GET', 'HEAD', 'QUERY']` | HTTP methods on which the `Accept-Query` header should be set                |
 | `baseMethod`           | `string`                                                               | `'GET'`                    | Original method implementing server logic for the route                      |
+| `decorateReply`        | `boolean`                                                              | `false`                    | Whether to decorate `reply` with `sendQuery` method                          |
 | `excludeReply`         | `(reply) => boolean`                                                   | `() => false`              | Whether to not apply the query filter to the response payload                |
 | `excludeRequest`       | `boolean \| string \| RegExp \| string[] \| Set \| (route) => boolean` | `false`                    | Excludes which routes receive a `QUERY` variant                              |
 | `filterReply`          | `(reply) => boolean`                                                   | status code is 2xx         | Whether to apply the query filter to the response payload                    |
 | `filterRequest`        | `boolean \| string \| RegExp \| string[] \| Set \| (route) => boolean` | `true`                     | Filters which routes receive a `QUERY` variant                               |
 | `overrideQueryTypes`   | `Record<string, (document, query) => value>`                           | `defaultQueryTypes`        | Replaces the default query types entirely                                    |
+| `strict`               | `boolean` \| `null`                                                    | `null`                     | Whether to throw on unknown `Content-Type` or return unfiltered response     |
 
 ### Default query types
 
@@ -100,6 +102,13 @@ import { defaultQueryTypes } from 'fastify-query';
 ```
 
 Keys become the accepted `Content-Type` values (and are advertised in `Accept-Query`). Values are the functions that evaluate the query expression against the full response.
+
+### `reply.sendQuery`
+
+Setting `decorateReply` option to `true` enables `reply.sendQuery(data)` method.
+
+This method can be used as direct replacement to `reply.send(data)` and it implements similar filtering logic as `QUERY` handlers added by the plugin.
+The options `addQueryTypes`, `overrideQueryTypes`, `strict` are applied to this method.
 
 ### `filterRequest` examples
 
@@ -141,6 +150,14 @@ await app.register(fastifyQuery, {
   },
 });
 ```
+
+### Strict handling
+
+The `strict` option defines behaviour in case if no function is defined for the `Content-Type` provided by client.
+If it's `true`, it returns HTTP 415. If it's `false`, it returns the response without further processing.
+
+If it's undefined or `null` (default), it relies on `handling` parameter in `Prefer` request header.
+By default it's in strict mode, providing `handling=lenient` overrides it.
 
 ## How it works
 
