@@ -16,6 +16,13 @@ const defaultQueryTypes = Object.freeze({
   'application/jsonpointer': queryJsonpointer,
 });
 
+function isPreferHandlingStrict({ prefer }, reply) {
+  const { handling } = prefer?.match(/handling\s*=\s*(?<handling>[^,;\s"']+)/)?.groups ?? {};
+  if (handling === 'strict' || handling === 'lenient')
+    reply?.header('preference-applied', `handling=${handling}`);
+  return handling !== 'lenient';
+};
+
 function routeMatch(route) {
   const { url } = route;
   switch (typeof this) {
@@ -34,10 +41,13 @@ function routeMatch(route) {
   }
 }
 
-const createSendQuery = (queryTypes = defaultQueryTypes) => async function sendQuery(data) {
-  const { request: { body, mediaType } } = this;
-  if (!(mediaType in queryTypes))
-    throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${Object.keys(queryTypes).join(', ')}`);
+const createSendQuery = (queryTypes = defaultQueryTypes, strict) => async function sendQuery(data) {
+  const { request: { body, headers, mediaType } } = this;
+  if (!(mediaType in queryTypes)) {
+    if (strict ?? isPreferHandlingStrict(headers, this))
+      throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${Object.keys(queryTypes).join(', ')}`);
+    return this.send(await data);
+  }
   return this.send(await Promise.try(queryTypes[mediaType], await data, body).catch(cause => {
     const { message } = cause;
     throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause });
@@ -53,6 +63,7 @@ const createOnRouteHandler = ({
   filterRequest,
   queryTypes,
   sendQuery,
+  strict,
 }) => {
   const acceptQuery = Object.keys(queryTypes).join(', ');
 
@@ -79,16 +90,17 @@ const createOnRouteHandler = ({
       async handler(request, reply) {
         const { body, headers, mediaType } = request;
 
-        if (!(mediaType in queryTypes))
-          throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`);
+        if (!(mediaType in queryTypes)) {
+          if (strict ?? isPreferHandlingStrict(headers, reply))
+            throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`);
+          return handler.call(this, request, reply);
+        }
 
         queryFnMap.set(request, (function(document) {
-          try {
-            return queryTypes[mediaType](document, this);
-          } catch (cause) {
+          return Promise.try(queryTypes[mediaType], document, this).catch(cause => {
             const { message } = cause;
             throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause });
-          }
+          });
         }).bind(body));
 
         return handler.call(this, request, reply);
@@ -96,7 +108,12 @@ const createOnRouteHandler = ({
       method: 'QUERY',
       preSerialization: [
         ...preSerialization,
-        async (request, reply, payload) => filterReply(reply) && !excludeReply(reply) ? queryFnMap.get(request)(payload) : payload,
+        async function fastifyQueryPreSerialization(request, reply, payload) {
+          if (!filterReply(reply) || excludeReply(reply))
+            return payload;
+          const queryFn = queryFnMap.get(request);
+          return queryFn ? queryFn(payload) : payload;
+        },
       ],
       [kFastifyQueryRoute]: true,
       [kParentRoute]: new WeakRef(routeOptions),
@@ -105,7 +122,7 @@ const createOnRouteHandler = ({
 };
 
 async function fastifyQuery(fastify, opts) {
-  const { addQueryTypes, decorateReply, overrideQueryTypes } = (opts = {
+  const { addQueryTypes, decorateReply, overrideQueryTypes, strict } = (opts = {
     addQueryTypes: {},
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
     baseMethod: 'GET',
@@ -121,7 +138,7 @@ async function fastifyQuery(fastify, opts) {
     ...overrideQueryTypes,
     ...addQueryTypes,
   };
-  const sendQuery = createSendQuery(queryTypes);
+  const sendQuery = createSendQuery(queryTypes, strict);
 
   Object.entries(queryTypes).forEach(([contentType, queryFn]) => {
     if (typeof queryFn !== 'function')
