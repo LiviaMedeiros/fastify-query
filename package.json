@@ -47,12 +47,12 @@
     "jsonpointer": "^5.0.1"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.8.0",
-    "fastify": "^5.11.2"
+    "fastify": "^5.11.2",
+    "standard": "^17.1.2"
   },
   "scripts": {
-    "lint": "eslint . --ext .mjs",
+    "lint": "standard",
+    "lint-fix": "standard --fix",
     "test": "node --test"
   }
 }
