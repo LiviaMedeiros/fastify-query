@@ -83,6 +83,7 @@ curl -X QUERY -H 'Content-Type: application/jsonpointer' -d '/1/name' http://loc
 | `decorateReply`        | `boolean`                                                              | `false`                    | Whether to decorate `reply` with `sendQuery` method                          |
 | `excludeReply`         | `(reply) => boolean`                                                   | `() => false`              | Whether to not apply the query filter to the response payload                |
 | `excludeRequest`       | `boolean \| string \| RegExp \| string[] \| Set \| (route) => boolean` | `false`                    | Excludes which routes receive a `QUERY` variant                              |
+| `exposeQueryRoutes`    | `boolean`                                                              | `true`                     | If `false`, completely disables creating `QUERY` routes                      |
 | `filterReply`          | `(reply) => boolean`                                                   | status code is 2xx         | Whether to apply the query filter to the response payload                    |
 | `filterRequest`        | `boolean \| string \| RegExp \| string[] \| Set \| (route) => boolean` | `true`                     | Filters which routes receive a `QUERY` variant                               |
 | `overrideQueryTypes`   | `Record<string, (document, query) => value>`                           | `defaultQueryTypes`        | Replaces the default query types entirely                                    |
