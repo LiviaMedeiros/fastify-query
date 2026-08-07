@@ -18,8 +18,7 @@ const defaultQueryTypes = Object.freeze({
 
 function isPreferHandlingStrict({ prefer }, reply) {
   const { handling } = prefer?.match(/handling\s*=\s*(?<handling>[^,;\s"']+)/)?.groups ?? {};
-  if (handling === 'strict' || handling === 'lenient')
-    reply?.header('preference-applied', `handling=${handling}`);
+  (handling === 'lenient' || handling === 'strict') && reply?.header('preference-applied', `handling=${handling}`);
   return handling !== 'lenient';
 };
 
@@ -122,13 +121,14 @@ const createOnRouteHandler = ({
 };
 
 async function fastifyQuery(fastify, opts) {
-  const { addQueryTypes, decorateReply, overrideQueryTypes, strict } = (opts = {
+  const { addQueryTypes, decorateReply, exposeQueryRoutes, overrideQueryTypes, strict } = (opts = {
     addQueryTypes: {},
     advertiseAcceptQuery: ['GET', 'HEAD', 'QUERY'],
     baseMethod: 'GET',
     decorateReply: false,
     excludeReply: () => false,
     excludeRequest: false,
+    exposeQueryRoutes: true,
     filterReply: ({ statusCode }) => 200 <= statusCode && statusCode < 300,
     filterRequest: true,
     overrideQueryTypes: defaultQueryTypes,
@@ -139,7 +139,6 @@ async function fastifyQuery(fastify, opts) {
     ...overrideQueryTypes,
     ...addQueryTypes,
   };
-  const sendQuery = createSendQuery({ queryTypes, strict });
 
   Object.entries(queryTypes).forEach(([contentType, queryFn]) => {
     if (typeof queryFn !== 'function')
@@ -149,10 +148,9 @@ async function fastifyQuery(fastify, opts) {
     fastify.addContentTypeParser(contentType, { parseAs: 'string' }, async (request, body) => body);
   });
 
-  if (decorateReply)
-    fastify.decorateReply('sendQuery', sendQuery);
+  decorateReply && fastify.decorateReply('sendQuery', createSendQuery({ queryTypes, strict }));
 
-  fastify.addHook('onRoute', createOnRouteHandler(Object.assign(opts, { queryTypes, sendQuery })));
+  exposeQueryRoutes && fastify.addHook('onRoute', createOnRouteHandler(Object.assign(opts, { queryTypes })));
 }
 
 export default fp(fastifyQuery, {
