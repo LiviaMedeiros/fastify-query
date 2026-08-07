@@ -67,12 +67,12 @@ const createOnRouteHandler = ({
   const acceptQuery = Object.keys(queryTypes).join(', ');
 
   return function fastifyQueryOnRoute(routeOptions) {
+    const { handler, method, onSend, preSerialization = [], url } = routeOptions;
     if (routeOptions[kFastifyQueryRoute] ||
         !routeMatch.call(filterRequest, routeOptions) ||
-        routeMatch.call(excludeRequest, routeOptions))
+        routeMatch.call(excludeRequest, routeOptions) ||
+        this.hasRoute({ method: 'QUERY', url }))
       return;
-
-    const { handler, method, onSend, preSerialization = [] } = routeOptions;
     const methods = Array.isArray(method) ? method : [method];
 
     if (methods.every(method => advertiseAcceptQuery?.includes(method))) {
