@@ -73,8 +73,9 @@ const createOnRouteHandler = ({
       return;
 
     const { handler, method, onSend, preSerialization = [] } = routeOptions;
+    const methods = Array.isArray(method) ? method : [method];
 
-    if (advertiseAcceptQuery?.includes(method)) {
+    if (methods.every(method => advertiseAcceptQuery?.includes(method))) {
       async function fastifyQueryOnSend(request, reply, payload) {
         reply.header('accept-query', acceptQuery);
         return payload;
@@ -84,7 +85,7 @@ const createOnRouteHandler = ({
         : (routeOptions.onSend = onSend ? [onSend, fastifyQueryOnSend] : fastifyQueryOnSend);
     }
 
-    method === baseMethod && this.route({
+    methods.includes(baseMethod) && this.route({
       ...routeOptions,
       async handler(request, reply) {
         const { body, headers, mediaType } = request;
