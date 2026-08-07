@@ -9,7 +9,6 @@ const { message: unsupportedMediaTypeMessage } = unsupportedMediaType()
 
 const kFastifyQueryRoute = Symbol('fastify-query-route')
 const kParentRoute = Symbol('parent-route')
-const queryFnMap = new WeakMap()
 
 const defaultQueryTypes = Object.freeze({
   'application/jsonpath': queryJsonpath,
@@ -40,7 +39,10 @@ function routeMatch (route) {
   }
 }
 
-const createSendQuery = ({ queryTypes = defaultQueryTypes, strict }) => async function sendQuery (data) {
+const createSendQuery = ({
+  queryTypes = defaultQueryTypes,
+  strict
+}) => async function sendQuery (data) {
   const { request: { body, headers, mediaType } } = this
   if (!(mediaType in queryTypes)) {
     if (strict ?? isPreferHandlingStrict(headers, this)) { throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${Object.keys(queryTypes).join(', ')}`) }
@@ -50,6 +52,20 @@ const createSendQuery = ({ queryTypes = defaultQueryTypes, strict }) => async fu
     const { message } = cause
     throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause })
   }))
+}
+
+const createFastifyQueryPreSerialization = ({
+  excludeReply,
+  filterReply,
+  queryTypes = defaultQueryTypes
+}) => async function fastifyQueryPreSerialization ({ body, mediaType }, reply, payload) {
+  const queryFn = queryTypes[mediaType]
+  return filterReply(reply) && !excludeReply(reply) && queryFn
+    ? Promise.try(queryFn, payload, body).catch(cause => {
+      const { message } = cause
+      throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause })
+    })
+    : payload
 }
 
 const createOnRouteHandler = ({
@@ -76,7 +92,7 @@ const createOnRouteHandler = ({
       async function fastifyQueryOnSend (request, reply, payload) {
         reply.header('accept-query', acceptQuery)
         return payload
-      };
+      }
       Array.isArray(onSend)
         ? onSend.push(fastifyQueryOnSend)
         : (routeOptions.onSend = onSend ? [onSend, fastifyQueryOnSend] : fastifyQueryOnSend)
@@ -85,30 +101,14 @@ const createOnRouteHandler = ({
     methods.includes(baseMethod) && this.route({
       ...routeOptions,
       async handler (request, reply) {
-        const { body, headers, mediaType } = request
-
-        if (!(mediaType in queryTypes)) {
-          if (strict ?? isPreferHandlingStrict(headers, reply)) { throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`) }
-          return handler.call(this, request, reply)
-        }
-
-        queryFnMap.set(request, function (document) {
-          return Promise.try(queryTypes[mediaType], document, this).catch(cause => {
-            const { message } = cause
-            throw Object.assign(badRequest(`${badRequestMessage}: ${message}`), { cause })
-          })
-        }.bind(body))
-
+        const { headers, mediaType } = request
+        if (!(mediaType in queryTypes) && (strict ?? isPreferHandlingStrict(headers, reply))) { throw unsupportedMediaType(`${unsupportedMediaTypeMessage}; must be one of: ${acceptQuery}`) }
         return handler.call(this, request, reply)
       },
       method: 'QUERY',
       preSerialization: [
         ...preSerialization,
-        async function fastifyQueryPreSerialization (request, reply, payload) {
-          if (!filterReply(reply) || excludeReply(reply)) { return payload }
-          const queryFn = queryFnMap.get(request)
-          return queryFn ? queryFn(payload) : payload
-        }
+        createFastifyQueryPreSerialization({ excludeReply, filterReply, queryTypes })
       ],
       [kFastifyQueryRoute]: true,
       [kParentRoute]: new WeakRef(routeOptions)
