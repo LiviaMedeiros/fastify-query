@@ -1,5 +1,6 @@
 # fastify-query
 
+[![CI](https://github.com/LiviaMedeiros/fastify-query/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/LiviaMedeiros/fastify-query/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/fastify-query.svg)](https://www.npmjs.com/package/fastify-query)
 
 A Fastify plugin that automatically adds [`QUERY` method](https://www.rfc-editor.org/rfc/rfc10008) handlers with [`JSONPath`](https://www.rfc-editor.org/rfc/rfc9535) and [`JSON Pointer`](https://www.rfc-editor.org/rfc/rfc6901) filtering.
