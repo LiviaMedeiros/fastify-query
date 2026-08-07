@@ -1,14 +1,11 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
      - master
-    paths-ignore:
-      - '*.md'
   pull_request:
-    paths-ignore:
-      - '*.md'
 
 permissions:
   contents: read
@@ -20,5 +17,5 @@ jobs:
       pull-requests: write
     uses: fastify/workflows/.github/workflows/plugins-ci.yml@v7
     with:
-      license-check: true
+      node-versions: '["24", "26"]'
       lint: true
