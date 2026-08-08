@@ -19,7 +19,7 @@ function isPreferHandlingStrict ({ prefer }, reply) {
   const { handling } = prefer?.match(/handling\s*=\s*(?<handling>[^,;\s"']+)/)?.groups ?? {};
   (handling === 'lenient' || handling === 'strict') && reply?.header('preference-applied', `handling=${handling}`)
   return handling !== 'lenient'
-};
+}
 
 function routeMatch (route) {
   const { url } = route
